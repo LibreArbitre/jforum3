@@ -108,14 +108,19 @@ public class JForumExecutionContext
 		templateConfig = config;
 	}
 	
-	/**
-	 * Gets a reference to the default template configuration settings.
-	 * @return The template configuration instance
-	 */
-	public static Configuration templateConfig()
-	{
-		return templateConfig;
-	}
+        /**
+         * Gets a reference to the default template configuration settings.
+         * @return The template configuration instance
+         */
+        public static Configuration templateConfig()
+        {
+                return templateConfig;
+        }
+
+        public static ExecutionContext start()
+        {
+                return new ExecutionContext();
+        }
 	
 	/**
 	 * Sets the execution context
