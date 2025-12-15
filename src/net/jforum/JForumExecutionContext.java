@@ -68,9 +68,9 @@ import freemarker.template.SimpleHash;
  */
 public class JForumExecutionContext
 {
-    private static ThreadLocal userData = new ThreadLocal();
-	private static Logger logger = Logger.getLogger(JForumExecutionContext.class);
-	private static Configuration templateConfig;
+    private static final ThreadLocal<JForumExecutionContext> userData = ThreadLocal.withInitial(JForumExecutionContext::new);
+        private static Logger logger = Logger.getLogger(JForumExecutionContext.class);
+        private static Configuration templateConfig;
 	
 	private Connection conn;
     private ForumContext forumContext;
@@ -84,27 +84,20 @@ public class JForumExecutionContext
 	 * Gets the execution context.
 	 * @return JForumExecutionContext
 	 */
-	public static JForumExecutionContext get()
-	{
-		JForumExecutionContext ex = (JForumExecutionContext)userData.get();
-
-		if (ex == null) {
-			ex = new JForumExecutionContext();
-			userData.set(ex);
-		}
-		
-		return ex;
-	}
+        public static JForumExecutionContext get()
+        {
+                return userData.get();
+        }
 	
 	/**
 	 * Checks if there is an execution context already set
 	 * @return <code>true</code> if there is an execution context
 	 * @see #get()
 	 */
-	public static boolean exists()
-	{
-		return (userData.get() != null);
-	}
+        public static boolean exists()
+        {
+                return (userData.get() != null);
+        }
 	
 	/**
 	 * Sets the default template configuration 
@@ -128,10 +121,10 @@ public class JForumExecutionContext
 	 * Sets the execution context
 	 * @param ex JForumExecutionContext
 	 */
-	public static void set(JForumExecutionContext ex)
-	{
-		userData.set(ex);
-	}
+        public static void set(JForumExecutionContext ex)
+        {
+                userData.set(ex);
+        }
 	
 	/**
 	 * Sets a connection
@@ -153,8 +146,8 @@ public class JForumExecutionContext
 	
 	public static Connection getConnection(boolean validate)
 	{
-		JForumExecutionContext ex = get();
-		Connection c =  ex.conn;
+                JForumExecutionContext ex = get();
+                Connection c =  ex.conn;
 		
 		if (validate && c == null) {
 			c = DBConnection.getImplementation().getConnection();
@@ -175,7 +168,7 @@ public class JForumExecutionContext
 
     public static ForumContext getForumContext()
     {
-        return ((JForumExecutionContext)userData.get()).forumContext;
+        return get().forumContext;
     }
 
     public void setForumContext(ForumContext forumContext)
@@ -204,7 +197,7 @@ public class JForumExecutionContext
 	 * @return SimpleHash
 	 */
 	public static SimpleHash getTemplateContext() {
-		return ((JForumExecutionContext)userData.get()).context;
+                return get().context;
 	}
 
 	/**
@@ -212,7 +205,7 @@ public class JForumExecutionContext
      * @param redirect String
      */
 	public static void setRedirect(String redirect) {
-		((JForumExecutionContext)userData.get()).redirectTo = redirect;
+                get().redirectTo = redirect;
 	}
 
 	/**
@@ -220,7 +213,7 @@ public class JForumExecutionContext
 	 * @param contentType String
 	 */
 	public static void setContentType(String contentType) {
-		((JForumExecutionContext)userData.get()).contentType = contentType;
+                get().contentType = contentType;
 	}
 	
 	/**
@@ -229,7 +222,7 @@ public class JForumExecutionContext
 	 */
 	public static String getContentType()
 	{
-		return ((JForumExecutionContext)userData.get()).contentType;
+                return get().contentType;
 	}
 
 	/**
@@ -238,8 +231,7 @@ public class JForumExecutionContext
 	 */
 	public static String getRedirectTo()
 	{
-		JForumExecutionContext ex = (JForumExecutionContext)userData.get();
-		return (ex != null ? ex.redirectTo : null);
+                return get().redirectTo;
 	}
 
 	/**
@@ -247,7 +239,7 @@ public class JForumExecutionContext
 	 * @param enable boolean
 	 */
 	public static void enableCustomContent(boolean enable) {
-		((JForumExecutionContext)userData.get()).isCustomContent = enable;
+                get().isCustomContent = enable;
 	}
 	
 	/**
@@ -257,14 +249,14 @@ public class JForumExecutionContext
 	 */
 	public static boolean isCustomContent()
 	{
-		return ((JForumExecutionContext)userData.get()).isCustomContent;
+                return get().isCustomContent;
 	}
 
 	/**
 	 * Forces the request to not commit the connection.
 	 */
 	public static void enableRollback() {
-		((JForumExecutionContext)userData.get()).enableRollback = true;
+                get().enableRollback = true;
 	}
 
 	/**
@@ -272,7 +264,7 @@ public class JForumExecutionContext
 	 * @return <code>true</code> if a commit should NOT be made
 	 */
 	public static boolean shouldRollback() {
-		return ((JForumExecutionContext)userData.get()).enableRollback;
+                return get().enableRollback;
 	}
 
     /**
@@ -327,6 +319,6 @@ public class JForumExecutionContext
 			}
 		}
 		
-		userData.set(null);
-	}
+                userData.remove();
+        }
 }
