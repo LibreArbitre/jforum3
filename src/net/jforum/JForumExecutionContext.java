@@ -68,11 +68,33 @@ import freemarker.template.SimpleHash;
  */
 public class JForumExecutionContext
 {
+    public static class ExecutionContext implements AutoCloseable
+    {
+        private boolean closed;
+
+        private ExecutionContext()
+        {
+            JForumExecutionContext.set(JForumExecutionContext.get());
+            JForumExecutionContext.getConnection(true);
+        }
+
+        @Override
+        public void close()
+        {
+            if (this.closed) {
+                return;
+            }
+
+            this.closed = true;
+            JForumExecutionContext.finish();
+        }
+    }
+
     private static ThreadLocal userData = new ThreadLocal();
-	private static Logger logger = Logger.getLogger(JForumExecutionContext.class);
-	private static Configuration templateConfig;
-	
-	private Connection conn;
+        private static Logger logger = Logger.getLogger(JForumExecutionContext.class);
+        private static Configuration templateConfig;
+
+        private Connection conn;
     private ForumContext forumContext;
     private SimpleHash context = new SimpleHash(ObjectWrapper.BEANS_WRAPPER);
     private String redirectTo;
@@ -84,11 +106,11 @@ public class JForumExecutionContext
 	 * Gets the execution context.
 	 * @return JForumExecutionContext
 	 */
-	public static JForumExecutionContext get()
-	{
-		JForumExecutionContext ex = (JForumExecutionContext)userData.get();
+        public static JForumExecutionContext get()
+        {
+                JForumExecutionContext ex = (JForumExecutionContext)userData.get();
 
-		if (ex == null) {
+                if (ex == null) {
 			ex = new JForumExecutionContext();
 			userData.set(ex);
 		}
@@ -115,14 +137,19 @@ public class JForumExecutionContext
 		templateConfig = config;
 	}
 	
-	/**
-	 * Gets a reference to the default template configuration settings.
-	 * @return The template configuration instance
-	 */
-	public static Configuration templateConfig()
-	{
-		return templateConfig;
-	}
+        /**
+         * Gets a reference to the default template configuration settings.
+         * @return The template configuration instance
+         */
+        public static Configuration templateConfig()
+        {
+                return templateConfig;
+        }
+
+        public static ExecutionContext start()
+        {
+                return new ExecutionContext();
+        }
 	
 	/**
 	 * Sets the execution context
@@ -291,42 +318,48 @@ public class JForumExecutionContext
 		
 		enableCustomContent(true);
     }
-	
-	/**
-	 * Finishes the execution context
-	 */
-	public static void finish()
-	{
-		Connection conn = JForumExecutionContext.getConnection(false);
-		
-		if (conn != null) {
-			if (SystemGlobals.getBoolValue(ConfigKeys.DATABASE_USE_TRANSACTIONS)) {
-				if (JForumExecutionContext.shouldRollback()) {
-					try {
-						conn.rollback();
-					}
-					catch (Exception e) {
-						logger.error("Error while rolling back a transaction", e);
-					}
-				}
-				else {
-					try {
-						conn.commit();
-					}
-					catch (Exception e) {
-						logger.error("Error while commiting a transaction", e);
-					}
-				}
-			}
-			
-			try {
-				DBConnection.getImplementation().releaseConnection(conn);
-			}
-			catch (Exception e) {
-				logger.error("Error while releasing the connection : " + e, e);
-			}
-		}
-		
-		userData.set(null);
-	}
+
+        /**
+         * Finishes the execution context
+         */
+        public static void finish()
+        {
+                closeConnection(JForumExecutionContext.getConnection(false));
+        }
+
+    private static void closeConnection(Connection conn)
+    {
+        try {
+            if (conn != null) {
+                if (SystemGlobals.getBoolValue(ConfigKeys.DATABASE_USE_TRANSACTIONS)) {
+                    if (JForumExecutionContext.shouldRollback()) {
+                        try {
+                            conn.rollback();
+                        }
+                        catch (Exception e) {
+                            logger.error("Error while rolling back a transaction", e);
+                        }
+                    }
+                    else {
+                        try {
+                            conn.commit();
+                        }
+                        catch (Exception e) {
+                            logger.error("Error while commiting a transaction", e);
+                        }
+                    }
+                }
+
+                try {
+                    DBConnection.getImplementation().releaseConnection(conn);
+                }
+                catch (Exception e) {
+                    logger.error("Error while releasing the connection : " + e, e);
+                }
+            }
+        }
+        finally {
+            userData.set(null);
+        }
+    }
 }

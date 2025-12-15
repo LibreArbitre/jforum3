@@ -32,57 +32,60 @@ public class POPPostAction
 {
 	private static Logger logger = Logger.getLogger(POPPostAction.class);
 	
-	public void insertMessages(POPParser parser)
-	{
-		long ms = System.currentTimeMillis();
-		int counter = 0;
-		
-		try {
-			JForumExecutionContext ex = JForumExecutionContext.get();
-			
-			RequestContext request = new StandardRequestContext();
-			ex.setForumContext(new JForumContext("/", "", request, null));
-			
-			JForumExecutionContext.set(ex);
-			
-			SessionFacade.setAttribute(ConfigKeys.TOPICS_READ_TIME, new HashMap());
-			
-			for (Iterator iter = parser.getMessages().iterator(); iter.hasNext(); ) {
-				POPMessage m = (POPMessage)iter.next();
-				String sessionId = ms + m.getSender() + counter++;
-				
-				request.getSessionContext().setAttribute(StandardSessionContext.SESSION_ID, sessionId);
-				
-				User user = this.findUser(m.getSender());
-				
-				if (user == null) {
-					logger.warn("Could not find user with email " + m.getSender() + ". Ignoring his message.");
-					continue;
-				}
-				
-				try {
-					UserSession us = new UserSession();
-					us.setUserId(user.getId());
-					us.setUsername(us.getUsername());
-					us.setSessionId(sessionId);
-					
-					SessionFacade.add(us, sessionId);
-					SessionFacade.setAttribute(ConfigKeys.LOGGED, "1");
-					
-					SessionFacade.removeAttribute(ConfigKeys.LAST_POST_TIME);
-					SessionFacade.setAttribute(ConfigKeys.REQUEST_IGNORE_CAPTCHA, "1");
-					
-					this.insertMessage(m, user);
-				}
-				finally {
-					SessionFacade.remove(sessionId);
-				}
-			}
-		}
-		finally {
-			JForumExecutionContext.finish();
-		}
-	}
+        public void insertMessages(POPParser parser)
+        {
+                long ms = System.currentTimeMillis();
+                int counter = 0;
+
+                try (JForumExecutionContext.ExecutionContext context = JForumExecutionContext.start()) {
+                        try {
+                                JForumExecutionContext ex = JForumExecutionContext.get();
+
+                                RequestContext request = new StandardRequestContext();
+                                ex.setForumContext(new JForumContext("/", "", request, null));
+
+                                JForumExecutionContext.set(ex);
+
+                                SessionFacade.setAttribute(ConfigKeys.TOPICS_READ_TIME, new HashMap());
+
+                                for (Iterator iter = parser.getMessages().iterator(); iter.hasNext(); ) {
+                                        POPMessage m = (POPMessage)iter.next();
+                                        String sessionId = ms + m.getSender() + counter++;
+
+                                        request.getSessionContext().setAttribute(StandardSessionContext.SESSION_ID, sessionId);
+
+                                        User user = this.findUser(m.getSender());
+
+                                        if (user == null) {
+                                                logger.warn("Could not find user with email " + m.getSender() + ". Ignoring his message.");
+                                                continue;
+                                        }
+
+                                        try {
+                                                UserSession us = new UserSession();
+                                                us.setUserId(user.getId());
+                                                us.setUsername(us.getUsername());
+                                                us.setSessionId(sessionId);
+
+                                                SessionFacade.add(us, sessionId);
+                                                SessionFacade.setAttribute(ConfigKeys.LOGGED, "1");
+
+                                                SessionFacade.removeAttribute(ConfigKeys.LAST_POST_TIME);
+                                                SessionFacade.setAttribute(ConfigKeys.REQUEST_IGNORE_CAPTCHA, "1");
+
+                                                this.insertMessage(m, user);
+                                        }
+                                        finally {
+                                                SessionFacade.remove(sessionId);
+                                        }
+                                }
+                        }
+                        catch (RuntimeException e) {
+                                JForumExecutionContext.enableRollback();
+                                throw e;
+                        }
+                }
+        }
 	
 	/**
 	 * Calls {@link PostAction#insertSave()}
